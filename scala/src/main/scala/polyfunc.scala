@@ -9,7 +9,7 @@ import scala.math.log10
 
 //Finally, the meat of the simulation, the polycrystal function
 object polyfunc {
-  val write = true
+  val write = false
   def polyfunc(polyCrystal:polyc,Tmacro:INDArray, Emacro:INDArray, Tlocinit:INDArray, Elocinit:INDArray):List[INDArray] ={
     val nbg = polyCrystal.nbg
 
@@ -106,7 +106,7 @@ object polyfunc {
         }
       }
       convergence = Math.max(convergence_mec,convergence_elec)
-      if(count>= 200){
+      if(count>= 400){
         println("Convergence ERROR, max count reached")
         println("Tmacro",Tmacro)
         println("Emacro",Emacro)
@@ -141,6 +141,7 @@ object polyfunc {
     var W = mtimesx.mul(E,polyCrystal.Pol, 'F').mul(-1).sub(mtimesx.mul(T61,polyCrystal.epsferro61, 'F')).sub(mtimesx.mul(E,dpz,'F').mul(2))
 
     var temp = exp(W.mul(-1).mul(polyCrystal.tetraAS)).sum(1)
+
     var denom = Nd4j.zeros(temp.shape()(0),6,temp.shape()(1), temp.shape()(2))
     for(i<-0 until denom.shape()(0)){
       for(j<-0 until denom.shape()(1)){
@@ -148,16 +149,20 @@ object polyfunc {
       }
     }
     var fvol = exp(W.mul(-1).mul(polyCrystal.tetraAS)).div(denom)
+
     var Dtemp = mtimesx.mul(mtimesx.mul(polyCrystal.kappa33,E,'N').add(dpz).add(polyCrystal.Pol),fvol,'N').sum(1)
     var D = Nd4j.zeros(Dtemp.shape()(0),1,Dtemp.shape()(1),Dtemp.shape()(2))
+
     for(i<-0 until Dtemp.shape()(0)){
       D.getRow(i).putRow(0,Dtemp.getRow(i))
     }
+
     var S61temp = mtimesx.mul(mtimesx.mul(polyCrystal.invC66,T61,'N').add(epspz).add(polyCrystal.epsferro61),fvol,'N').sum(1)
     var S61 = Nd4j.zeros(S61temp.shape()(0),1,S61temp.shape()(1),S61temp.shape()(2))
     for(i<-0 until S61temp.shape()(0)){
       S61.getRow(i).putRow(0,S61temp.getRow(i))
     }
+
     var Wtot = mtimesx.mul(fvol,W,'N').sum(1).sum(0)
 
     List(S61,D)

@@ -6,9 +6,9 @@ from structures.polycrystal import PolyCrystal as Polyc
 
 def main():
 	mono = Monoc()
-	mono.data_write()
+#	mono.data_write()
 	poly = Polyc(mono)
-	poly.data_write()
+#	poly.data_write()
 
 	n = 51
 	#n = 1

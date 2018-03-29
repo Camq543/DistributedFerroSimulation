@@ -2,7 +2,7 @@
 /Intellij
 
 #ignore testing scripts
-/test
+**/test
 
 #ignore compiled python
 *.pyc

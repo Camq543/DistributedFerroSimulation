@@ -16,35 +16,18 @@ object MME{
   def main(args:Array[String]){
     //Set up Monocrystal
     var monoCrystal = new monoc()
+//    monoCrystal.data_write()
     //Set up Polycrystal
     var polyCrystal = new polyc(monoCrystal)
-    //polyCrystal.data_write()
+//    polyCrystal.data_write()
     //plot directionality (unnecessary, only for checking)
-    var plotData = List[Map[String,Double]]()
-    var xval = 1.0
-    var yval = 1.0
-    //plot 1
-//    for(i <- 0 until polyCrystal.nbg){
-//      for(j<- 0 until 6){
-//        xval = polyCrystal.dir100.getDouble(i,j,0,0)/(1-polyCrystal.dir100.getDouble(i,j,2,0))
-//        yval = polyCrystal.dir100.getDouble(i,j,1,0)/(1- polyCrystal.dir100.getDouble(i,j,2,0))
-//        plotData = plotData :+ Map("a" -> xval,"b" -> yval)
-//      }
-//    }
-//    Vegas("A simple bar chart with embedded data.").
-//      withData(plotData
-//      ).
-//      encodeX("a", Quantitative).
-//      encodeY("b", Quantitative).
-//      mark(Point).
-//
     //first pass on polycrystal to determine mechanical and electric tensors
-    //n = 51
-    var n = 1
-//    var E_value = Nd4j.linspace(0,2e6,n)
-//    var T_value = Nd4j.create(Array(-100.0,-50.0,0.0,50.0,100.0)).mul(1e6)
-    var E_value = Nd4j.create(Array(1e6))
-    var T_value = Nd4j.create(Array(10e7))
+    var n = 51
+//    var n = 1
+    var E_value = Nd4j.linspace(0,2e6,n)
+    var T_value = Nd4j.create(Array(-100.0,-50.0,0.0,50.0,100.0)).mul(1e6)
+//    var E_value = Nd4j.create(Array(1e6))
+//    var T_value = Nd4j.create(Array(10e7))
     var m = T_value.shape()(1)
 
     var polyc_D = Nd4j.zeros(n,7,3,1)
@@ -54,31 +37,32 @@ object MME{
     var Emacro = Nd4j.zeros(3,1)
     var Tloc = Nd4j.zeros(polyCrystal.nbg,1,6,1)
     var Eloc = Nd4j.zeros(polyCrystal.nbg,1,3,1)
-    val pw = new PrintWriter(new File("iterCount.txt"))
+    //val pw = new PrintWriter(new File("iterCount.txt"))
     for(k <- 0 until m){
       Tmacro.putScalar(Array(2,0),T_value.getDouble(k))
       Tloc = matRep(Tmacro,polyCrystal.nbg,1)
       Eloc = Nd4j.zeros(polyCrystal.nbg,1,3,1)
       for(i<- 0 until n){
         Emacro.putScalar(Array(2,0),E_value.getDouble(i))
-        //println("Tmacro",Tmacro)
-        //println("Emacro",Emacro)
         println("i",i,"k",k)
         var retList:List[INDArray] = polyfunc.polyfunc(polyCrystal,Tmacro,Emacro,Tloc,Eloc)
         Tloc = retList(2)
         Eloc = retList(3)
         polyc_S.getRow(i).putRow(k,retList(0))
         polyc_D.getRow(i).putRow(k,retList(1))
-        try{
-          pw.write("i: " + i + " k: " + k + " iterations: " + retList(4).getDouble(0) + "\n")
-          pw.flush()
-        }
-        catch{
-          case iob: IndexOutOfBoundsException => println("ERROR, no iteration count")
-        }
+//        try{
+//          pw.write("i: " + i + " k: " + k + " iterations: " + retList(4).getDouble(0) + "\n")
+//          pw.flush()
+//        }
+//        catch{
+//          case iob: IndexOutOfBoundsException => println("ERROR, no iteration count")
+//        }
       }
     }
-    pw.close()
+    //pw.close()
+    var plotData = List[Map[String,Double]]()
+    var xval = 1.0
+    var yval = 1.0
     plotData = List[Map[String,Double]]()
     for(i<-0 until n){
       for(k<-0 until m){

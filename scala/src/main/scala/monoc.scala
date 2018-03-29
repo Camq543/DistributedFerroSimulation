@@ -94,7 +94,6 @@ class monoc {
 
   var dmonoc333:INDArray = MME.matRep(dmonoc333temp,1,nbdom)
   this.dmonoc333 = MME.rotate_ordre3(this.dmonoc333,R)
-  data_write()
 
   println("Monocrystal setup finished")
 
