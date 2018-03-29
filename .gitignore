@@ -1,0 +1,24 @@
+#ignore IDE files, src files and build.sbt are in /scala
+/Intellij
+
+#ignore testing scripts
+/test
+
+#ignore compiled python
+*.pyc
+
+#ignore old python scripts
+**/old
+
+#ignore output data 
+/simData
+**/DataFiles
+
+#ignore matlab files, that ain't my work
+/matlab
+
+#just incase they aren't in the right directory, ignore data files (csv,txt,png,jpg)
+*.jpg
+*.png
+*.txt
+*.csv
