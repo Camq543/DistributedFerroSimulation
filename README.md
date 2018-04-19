@@ -1,5 +1,5 @@
 # DistributedFerroSimulation
-
+* For commented code, look in the "pySlurm/distributed" python directory
 ## Setup Guide
 
 ### Scala

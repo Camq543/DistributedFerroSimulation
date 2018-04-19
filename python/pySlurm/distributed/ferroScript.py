@@ -10,7 +10,7 @@ from pyspark import SparkConf
 
 #my functions
 from runFunctions import run_poly, piezo_map_nbt, mongo_data_fill
-from util_functions.matToFile import write_csv
+#from util_functions.matToFile import write_csv
 from constants import Constants
 from polyfunc import polyfunc
 from structures.monocrystal import MonoCrystal as Monoc
@@ -20,42 +20,40 @@ def main():
 	try:
 		startTime = time.time()
 		workDir = "/home/lapis/Documents/FerroProject/python/pythonMME/DataFiles/"
-		mono = Monoc()
+		mono = Monoc() #initialize monocrystal
 	#	mono.data_write()
-		poly = Polyc(mono)
+		poly = Polyc(mono) #using the monocrystal, initialize polycrystal
 	#	poly.data_write()
 
-		polyTime = run_poly(poly)
+		polyTime, polycS, polycD = run_poly(poly) #determine polycrystal behavior
 		print("Polycrystal function took " + str(polyTime) + " seconds.")
-		#plot_polycrystal(polycS,polycD,Evalue,Tvalue)
+		#plot_polycrystal(polycS,polycD,Evalue,Tvalue) #plot polycrystal behavior
 
-		sconf = SparkConf().set("spark.default.parallelism",int(os.environ['SLURM_JOB_NUM_NODES']))
+		#set up configuration for spark, namely logging directory and default parallelism
+		#we want to treat each piezo calculation as one task, so we parallelize across each combination of range(nbt) and range(nbe)
+		sconf = SparkConf().set("spark.default.parallelism",Constants.nbt * Constants.nbe)
 		sconf = sconf.set("spark.local.dir","$HOME/tmp/spark-logs/")
-		sconf = sconf.set("spark.locality.wait",10)
-		master_node = 'spark://' + os.environ['MASTER'] + ':7077'
+		master_node = 'spark://' + os.environ['MASTER'] + ':7077' #keep track of where the master node is
 		
-		
-		sc = SparkContext(master = master_node,conf = sconf)
-		time.sleep(5)
+		#initialize SparkContext, which is used to interface between python and spark
+		sc = SparkContext(master = master_node,conf = sconf) 
+		time.sleep(5)#wait until spark is finished setting up 
 		t1 = time.time()
-		#poly = sc.broadcast(poly)
-		LApp = piezo_map_nbt(poly,sc)
+		LApp = piezo_map_nbt(poly,sc) #pass our polycrystal and SparkContext for use in calculation of piezo coefficients
 		piezoTime = time.time() - t1
-
-		#write_csv("LApp",LApp)
 
 		totalTime = time.time()-startTime
 		print("Piezo coefficents took " + str(piezoTime) + " seconds.")
-		mongo_data_fill(polyTime,piezoTime,totalTime)
-		time.sleep(5)
+		mongo_data_fill(polyTime,piezoTime,totalTime) #store our run data in mongo db
 		print('Cancelling')
-		os.system("scancel %s" % os.environ['SLURM_JOBID'])
+		os.system("scancel %s" % os.environ['SLURM_JOBID']) #cancel slurm job to shutdown cluster
 	except Exception as e:
-		print("EXCEPTINO THROWN, CANCELLING")
-		os.system("scancel %s" % os.environ['SLURM_JOBID'])
+		print("EXCEPTION THROWN, CANCELLING")
+		os.system("scancel %s" % os.environ['SLURM_JOBID']) #in case of error, cancel slurm job
 		raise e
 
 def plot_polycrystal(polycS, polycD, Evalue, Tvalue):
+	#plot behavior of polycrystal
 	fig, ax = plt.subplots()
 	colors = ['c','r','b','g','m']
 	for k in range(m):

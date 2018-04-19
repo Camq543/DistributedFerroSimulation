@@ -27,13 +27,13 @@ class Constants:
     n2 = 2
     n3 = 2
 
-    #------------------------constants for script_RC------------------------------------#   
+    #------------------------constants for main script------------------------------------#   
     #for saving plot images
     saveDir="plots/"
     dpi=200
     lineWidth = 1
 
-    #piezo coefficient
+    #piezo coefficient calculation
     alpha = 1e-3;
     nbt = 16
     nbe = 16

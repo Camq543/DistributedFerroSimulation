@@ -2,6 +2,7 @@ import numpy as np
 import math
 
 def order_3(d333,R):
+	#rotates a 3x3x3 matrix according to some rotation matrix R
 	arrSize = d333.shape
 	postRot = np.zeros((arrSize[0],arrSize[1],3,3,3))
 
@@ -18,6 +19,7 @@ def order_3(d333,R):
 	return postRot
 
 def order_4(C3333,R):
+	#rotates a 3x3x3x3 matrix according to some rotation matrix R
 	arrSize = C3333.shape
 	postRot = np.zeros((arrSize[0],arrSize[1],3,3,3,3))
 
@@ -36,6 +38,7 @@ def order_4(C3333,R):
 	return postRot
 
 def matrot(angles):
+	#constructs a 3x3 orientation matrix from a 3x1 (xyz) angle vector
     c1=math.cos(angles[0]);
     s1=math.sin(angles[0]);
     c2=math.cos(angles[1]);

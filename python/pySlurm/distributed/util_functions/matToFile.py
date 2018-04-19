@@ -1,3 +1,4 @@
+#write tensor to a csv file
 def write_csv(filename,toWrite):
 	outFile = open(filename + 'python.csv','w')
 	shape = toWrite.shape

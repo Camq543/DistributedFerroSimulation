@@ -1,5 +1,5 @@
 import numpy as np
-
+#idk what this does, some physics stuff to make 3x3 and 6x6 matrices, respectively
 def Eshelby33_muphylin(C_inf, form_inclu):
     if form_inclu == 1:
         Ndemag33=1/3*np.eye(3)

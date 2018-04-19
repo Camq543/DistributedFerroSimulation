@@ -16,59 +16,63 @@ from structures.monocrystal import MonoCrystal as Monoc
 from structures.polycrystal import PolyCrystal as Polyc
 
 def run_poly(poly):
+	##Runs initial round of iterations to determine the behavior of the polycrystal
 	n = 51
-		#n = 1
-	Evalue = np.linspace(0,2e6,n)
-	Tvalue = np.array([-100,-50,0,50,100]) * 1e6
-	#Evalue = np.array([1e6])
-	#Tvalue = np.array([10e7])
+	Evalue = np.linspace(0,2e6,n) #values to use for electric field
+	Tvalue = np.array([-100,-50,0,50,100]) * 1e6 #values to use for mechanical stress
 	m = len(Tvalue)
 
-	t1 = time.time()
-	pool = multiprocessing.Pool()
-	func = partial(map_poly,poly,Tvalue,Evalue)
-	results = pool.map(func, range(m))
+	t1 = time.time() #start timer
+	pool = multiprocessing.Pool() #prepare parallel pool
+	func = partial(map_poly,poly,Tvalue,Evalue) #prepare function for parallelization
+	results = pool.map(func, range(m)) #get results from parallel computation
+	pool.close() #close parallel pool
 
+	#initialize arrays to hold polycrystal behavior
 	polycD = np.zeros((m,n))
 	polycS = np.zeros((m,n))
 
+	#store values obtained in polycrystal calculation for use plotting
 	for k in range(m):
 		polycD[k,:] = results[k][1][:]
 		polycS[k,:] = results[k][2][:]
 
-	pool.close()
-	return time.time() - t1 
+	return time.time() - t1, polycS, polycD #return computation time
 
 def map_poly(poly,Tvalue,Evalue,k):
-	n = len(Evalue)
-	tempD = np.zeros(n)
-	tempS = np.zeros(n)
+	#initialize arrays to hold results
+	tempD = np.zeros(len(Evalue))
+	tempS = np.zeros(len(Evalue))
 
-	Tmacro = np.array([0,0,Tvalue[k],0,0,0]).reshape(6,1)
+	Tmacro = np.array([0,0,Tvalue[k],0,0,0]).reshape(6,1) #create stress vector based on input
 
+	#create tensors to be used in polyfunc
 	Tloc = np.tile(Tmacro,(poly.nbg,1,1,1))
 	Eloc = np.zeros((poly.nbg,1,3,1))
 
-	for i in range(n):
+	#iterate over different Evalues and determine polycrystal behavior
+	for i in range(len(Evalue)):
 		Emacro = np.array([0,0,Evalue[i]]).reshape(3,1)
 
 		Smacro,Dmacro,Tloc,Eloc,iterCount = polyfunc(poly,Tmacro,Emacro,Tloc,Eloc)
-		# outFile.write(str(i) + "," + str(k) + "," + str(iterCount) + "\n")
 
 		tempD[i] = Dmacro[2,:]
 		tempS[i] = Smacro[2,:]
 
-	return k,tempD,tempS
+	return k,tempD,tempS #return k value given along with stress and electric behavior
 
-def piezo_map_nbt(poly,sc):
-
+def piezo_map_tasks(poly,sc):
 	nbt = Constants.nbt
 	nbe = Constants.nbe
 	LApp = np.zeros((nbt,nbe,9,9))
+	taskArr = []
+
+	for i in range(nbt):
+		for k in range(nbe):
+			taskArr.append((i,k))
 
 	print('DEFAULT PARALLELISM',sc.defaultParallelism)
-	#poly = sc.broadcast(poly)
-	tMap = sc.parallelize(range(nbt),int(os.environ['SLURM_JOB_NUM_NODES']))
+	tMap = sc.parallelize(range(taskArr),nbt*nbe)
 	print("NUMBER OF PARTITIONS", tMap.getNumPartitions())
 	tMap = tMap.map(lambda i: map_piezo_e(poly,i))
 	tMap = tMap.collect()
@@ -80,63 +84,72 @@ def piezo_map_nbt(poly,sc):
 	
 	return LApp
 
-def run_piezo_e(poly,i):
-	nbe = Constants.nbe
+def piezo_map_nbt(poly,sc):
+	#initialize spark and map stress values to be used for computation
 	nbt = Constants.nbt
-	Tvalue = np.linspace(0,Constants.tSpace,nbt) * 1e6
-	Evalue = np.linspace(0,Constants.eSpace,nbe) * 1e6
+	nbe = Constants.nbe
+	LApp = np.zeros((nbt,nbe,9,9)) #array to store results
 
-	data = []
-	for k in range(nbe):
-		data.append(run_piezo(poly,Tvalue,Evalue,i,k))
-
-	return i,data
+	print('DEFAULT PARALLELISM',sc.defaultParallelism) 
+	tMap = sc.parallelize(range(nbt),nbt) #distribute across a range of stress values represented by indexes in range(nbt)
+	print("NUMBER OF PARTITIONS", tMap.getNumPartitions())
+	tMap = tMap.map(lambda i: map_piezo_e(poly,i)) #create task using poly for each stress index
+	tMap = tMap.collect() #collect function results
+	
+	#store data in LApp array
+	for tDat in tMap:
+			for eDat in tDat[1]:
+				for jDat in eDat[1]:
+					LApp[tDat[0],eDat[0],:,jDat[0]] = jDat[1][:,0]
+	
+	return LApp
 
 def map_piezo_e(poly,i):
-	pool = multiprocessing.Pool(processes = int(os.environ['SLURM_CPUS_PER_TASK']))
+	#for a given stress index, parallelize across different electric fields
 	nbe = Constants.nbe
 	nbt = Constants.nbt
-	Tvalue = np.linspace(0,Constants.tSpace,nbt) * 1e6
-	Evalue = np.linspace(0,Constants.eSpace,nbe) * 1e6
+	Tvalue = np.linspace(0,Constants.tSpace,nbt) * 1e6 #vector of stress values to use
+	Evalue = np.linspace(0,Constants.eSpace,nbe) * 1e6 #vector of electric field values to use
 
-	func = partial(run_piezo, poly, Tvalue, Evalue,i)
-	data = pool.map(func,range(nbe))
+	pool = multiprocessing.Pool(processes = int(os.environ['SLURM_CPUS_PER_TASK'])) #initialize parallel pool based on number of cpus needed per task
+	func = partial(run_piezo, poly, Tvalue, Evalue,i) #prepare function for parallelization
+	data = pool.map(func,range(nbe))#parallelize across a range electric field values represented by indexes in range(nbe)
 	pool.close()
-	return i,data
+	return i,data #return stress index and calculated data
 
 def run_piezo(poly,Tvalue,Evalue,i,k):
-	alph = Constants.alpha
-	mecVar = np.zeros((6,1))
-	elecVar = np.zeros((3,1))
-	delta = 0
-	TStat = np.array([0,0,Tvalue[i],0,0,0]).reshape(6,1)
-	EStat = np.array([0,0,Evalue[k]]).reshape(3,1)
-	Tloc = np.tile(TStat,(poly.nbg,1,1,1))
-	Eloc = np.tile(EStat,(poly.nbg,1,1,1))
+	#determine piezo coefficients for given polycrystal 
+	alph = Constants.alpha #determines degree of variation in polyfunc tests
+	delta = 0 #initialize var to hold degree of variation 
+	TStat = np.array([0,0,Tvalue[i],0,0,0]).reshape(6,1) #stress vector for use in polyfunc
+	EStat = np.array([0,0,Evalue[k]]).reshape(3,1) #electric field vector for use in polyfunc
+	Tloc = np.tile(TStat,(poly.nbg,1,1,1)) #stress tensor for use in polyfunc
+	Eloc = np.tile(EStat,(poly.nbg,1,1,1)) #electric field tensor for use in polyfunc
 	toReturn = []
-	# print(TStat)
-	# print(EStat)
 
-	Smacro,Dmacro,Tinit,Einit,iterCount = polyfunc(poly,TStat,EStat,Tloc,Eloc)
-	for j in range(9):
-		T = TStat
-		E = EStat
+	Smacro,Dmacro,Tinit,Einit,iterCount = polyfunc(poly,TStat,EStat,Tloc,Eloc) #calculate starting tensors for use below
+	
+	#stress vectors are 6x1, electric field are 3x1
+	#we iterate over the 6 possible stress indexes, and 3 possible electric indexes, varying one each time
+	#In the end, we have a 9x9 vector created from the stress and induction response of the polycrystal based on the 9 different variations
+	for j in range(9): 
 		if(j < 6):
-			# print("inT")
-			mecVar = np.zeros((6,1))
+			#if j <6, we vary stress
+			mecVar = np.zeros((6,1)) #initialize variance array
 			if (Tvalue[i] == 0):
 				delta = 100
 			else:
 				delta = -alph * Tvalue[i]
-			mecVar[j] = delta
-
-			T = TStat + mecVar
+			mecVar[j] = delta #set index j to a value based on alpha and our given stress values 
+			#add variation to original stress vector and calculate
+			T = TStat + mecVar 
 			S1,D1 = polyfunc(poly,T,E,Tinit + mecVar,Einit)[:2]
-
+			#subtract variation from original electric field vector and calculate
 			T = TStat - mecVar
 			S2,D2 = polyfunc(poly,T,E,Tinit - mecVar,Einit)[:2]
 
 		else:
+			#if j > 6, we vary electric field, logic is identical to above calculations
 			elecVar = np.zeros((3,1))
 			if(Evalue[k] == 0):
 				delta = 100
@@ -150,11 +163,11 @@ def run_piezo(poly,Tvalue,Evalue,i,k):
 			E = EStat - elecVar
 			S2,D2 = polyfunc(poly,T,E,Tinit,Einit - elecVar)[:2]
 
-		# print(np.concatenate(((S1-S2)/(2*delta),(D1-D2)/(2*delta)),0).shape)
-		toReturn.append((j,np.concatenate(((S1-S2)/(2*delta),(D1-D2)/(2*delta)),0)))
-	return k,toReturn
+		toReturn.append((j,np.concatenate(((S1-S2)/(2*delta),(D1-D2)/(2*delta)),0))) #concatenate stress and induction response, and divide by 2*delta
+	return k,toReturn #return given electric field index and response array
 
 def mongo_data_fill(polycTime, piezoTime, totalTime):
+	#add calculation time to mongo database
     #----------------------MONGODB STUFF------------------------------------#
     with open(expanduser('~/.ipmongo')) as f:
         IPadd = f.readline().strip()
