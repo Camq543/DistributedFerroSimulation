@@ -9,6 +9,8 @@
 
 #ignore old python scripts
 **/old
+**/python_scripts_dist
+**/python_scripts_par
 
 #ignore output data 
 /simData
@@ -22,3 +24,5 @@
 *.png
 *.txt
 *.csv
+*.tar
+*.gz
