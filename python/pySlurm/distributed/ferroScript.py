@@ -9,7 +9,7 @@ from pyspark import SparkContext
 from pyspark import SparkConf
 
 #my functions
-from runFunctions import run_poly, piezo_map_nbt, mongo_data_fill
+from runFunctions import run_poly, piezo_map_nbt, mongo_data_fill, piezo_map_tasks
 #from util_functions.matToFile import write_csv
 from constants import Constants
 from polyfunc import polyfunc
@@ -39,16 +39,17 @@ def main():
 		sc = SparkContext(master = master_node,conf = sconf) 
 		time.sleep(5)#wait until spark is finished setting up 
 		t1 = time.time()
-		LApp = piezo_map_nbt(poly,sc) #pass our polycrystal and SparkContext for use in calculation of piezo coefficients
+		LApp,taskTimes = piezo_map_tasks(poly,sc) #pass our polycrystal and SparkContext for use in calculation of piezo coefficients
 		piezoTime = time.time() - t1
 
 		totalTime = time.time()-startTime
 		print("Piezo coefficents took " + str(piezoTime) + " seconds.")
-		mongo_data_fill(polyTime,piezoTime,totalTime) #store our run data in mongo db
+		mongo_data_fill(polyTime,piezoTime,totalTime,taskTimes) #store our run data in mongo db
 		print('Cancelling')
 		os.system("scancel %s" % os.environ['SLURM_JOBID']) #cancel slurm job to shutdown cluster
 	except Exception as e:
 		print("EXCEPTION THROWN, CANCELLING")
+		print(e)
 		os.system("scancel %s" % os.environ['SLURM_JOBID']) #in case of error, cancel slurm job
 		raise e
 
