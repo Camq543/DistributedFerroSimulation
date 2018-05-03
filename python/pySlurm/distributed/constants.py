@@ -23,9 +23,9 @@ class Constants:
 
     #------------------------constants for polycrystal------------------------------------#
     #grain orientations
-    n1 = 3
-    n2 = 2
-    n3 = 2
+    n1 = 13
+    n2 = 7
+    n3 = 6
 
     #------------------------constants for main script------------------------------------#   
     #for saving plot images

@@ -240,12 +240,21 @@ def mongo_data_fill(polycTime, piezoTime, totalTime,taskTimes):
 
     db = client['ferro-runs']
     pycollection = db['pycollection']
+    breakcollection = db['pybreak']
     
     grains = Constants.n1*Constants.n2*Constants.n3
     insert_data = {'num-nodes':int(os.environ['SLURM_JOB_NUM_NODES']), 'polyc-time':polycTime, 'piezo-time':piezoTime, 'total-time':totalTime,'nbt':Constants.nbt,'nbe':Constants.nbe,'grains':grains}
-    pycollection.insert_one(insert_data)
+    if Constants.tobreak:
+        breakcollection.insert_one(insert_data)
+    else:
+        pycollection.insert_one(insert_data)
 
     taskCollection = db['tasktimes']
+    taskbreak = db['taskbreak']
     for i in range(Constants.nbt):
         for j in range(Constants.nbe):
-            taskCollection.insert_one({'i':i,'k':j,"time":taskTimes[i,j],'grains':grains})
+            insert_data = {'i':i,'k':j,"nbt":Constants.nbt,"nbe":Constants.nbe,"time":taskTimes[i,j],'grains':grains,'num-nodes':int(os.environ['SLURM_JOB_NUM_NODES'])}
+            if Constants.tobreak:
+                taskbreak.insert_one(insert_data)
+            else:
+                taskCollection.insert_one(insert_data)

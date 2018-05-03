@@ -32,11 +32,11 @@ def main():
 		#set up configuration for spark, namely logging directory and default parallelism
 		#we want to treat each piezo calculation as one task, so we parallelize across each combination of range(nbt) and range(nbe)
 		sconf = SparkConf().set("spark.default.parallelism",Constants.nbt * Constants.nbe)
-		sconf = sconf.set("spark.local.dir","$HOME/tmp/spark-logs/")
-		master_node = 'spark://' + os.environ['MASTER'] + ':7077' #keep track of where the master node is
+		#sconf = sconf.set("spark.local.dir","$HOME/tmp/spark-logs/")
+		#master_node = 'spark://' + os.environ['MASTER'] + ':7077' #keep track of where the master node is
 		
 		#initialize SparkContext, which is used to interface between python and spark
-		sc = SparkContext(master = master_node,conf = sconf) 
+		sc = SparkContext(master = "local[4]",conf = sconf) #when using Slurm, we submit with master = master_node, but on local pc just use local
 		time.sleep(5)#wait until spark is finished setting up 
 		t1 = time.time()
 		LApp,taskTimes = piezo_map_tasks(poly,sc) #pass our polycrystal and SparkContext for use in calculation of piezo coefficients
@@ -44,13 +44,13 @@ def main():
 
 		totalTime = time.time()-startTime
 		print("Piezo coefficents took " + str(piezoTime) + " seconds.")
-		mongo_data_fill(polyTime,piezoTime,totalTime,taskTimes) #store our run data in mongo db
-		print('Cancelling')
-		os.system("scancel %s" % os.environ['SLURM_JOBID']) #cancel slurm job to shutdown cluster
+		#mongo_data_fill(polyTime,piezoTime,totalTime,taskTimes) #store our run data in mongo db
+		#print('Cancelling')
+		#os.system("scancel %s" % os.environ['SLURM_JOBID']) #cancel slurm job to shutdown cluster
 	except Exception as e:
 		print("EXCEPTION THROWN, CANCELLING")
-		print(e)
-		os.system("scancel %s" % os.environ['SLURM_JOBID']) #in case of error, cancel slurm job
+		#print(e)
+		#os.system("scancel %s" % os.environ['SLURM_JOBID']) #in case of error, cancel slurm job
 		raise e
 
 def plot_polycrystal(polycS, polycD, Evalue, Tvalue):
